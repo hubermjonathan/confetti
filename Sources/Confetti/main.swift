@@ -28,7 +28,7 @@ final class ConfettiOverlay {
     private static let subBurstGap: CFTimeInterval = 0.033 // every-other frame @ 60fps — 0.017 collided with vsync commit
     private static let launchJitter: CFTimeInterval = 0.05 // per-particle jitter within its sub-burst
     private static let spreadAngle: CGFloat = .pi / 6  // ±30° cone (a bit wider)
-    private static let sizeRange: ClosedRange<CGFloat> = 18...28
+    private static let sizeRange: ClosedRange<CGFloat> = 28...44
     private static let lifetime: CFTimeInterval = 2.2       // flightTime + short tail; heavier g clears screen faster
     private static let dragK: CGFloat = 0.8                 // horizontal drag coefficient
     private static let trajectorySteps: Int = 10            // keyframe samples (cubic interp keeps smooth)
@@ -244,7 +244,18 @@ final class ConfettiOverlay {
             let steepBias = (i % 6 == 0)
             let angleJitter = rand(in: -Self.spreadAngle...Self.spreadAngle)
             let extraLift: CGFloat = steepBias ? .pi * 0.10 : 0    // ~18° more vertical
-            let angle = shot.angle + angleJitter + extraLift
+            var angle = shot.angle + angleJitter + extraLift
+            // Clamp: never rotate past vertical toward the outward wall.
+            // Cannon's original aim is inward+up; if jitter+lift pushes past 90° from
+            // horizontal (toward the near wall), reflect back. Keeps a ~5° safety margin.
+            let inwardSign: CGFloat = cos(shot.angle) >= 0 ? 1 : -1
+            let maxAngleFromHoriz: CGFloat = .pi / 2 - .pi / 36            // 85°
+            let minAngleFromHoriz: CGFloat = .pi / 12                       // 15° above horiz
+            if inwardSign > 0 {
+                angle = min(max(angle, minAngleFromHoriz), maxAngleFromHoriz)
+            } else {
+                angle = min(max(angle, .pi - maxAngleFromHoriz), .pi - minAngleFromHoriz)
+            }
             // Floor 0.55: mid between old 0.4 (too many stalled at cannon)
             // and 0.75 (overshot center).
             let speedRange: ClosedRange<CGFloat> = steepBias ? (1.15 ... 1.55) : (0.55 ... 1.3)
@@ -256,9 +267,19 @@ final class ConfettiOverlay {
             // but coherent enough to look like a shot leaving the cannon.
             let launchDelay = CFTimeInterval(rand(in: 0 ... CGFloat(Self.launchJitter)))
 
-            let size = rand(in: Self.sizeRange)
+            let baseSize = rand(in: Self.sizeRange)
             let color = Self.colors.randomElement(using: &rng)!
             let shape = Self.allShapes.randomElement(using: &rng)!
+
+            // Per-shape scale: rects render larger overall; triangles slightly smaller;
+            // circles unchanged. Multiplier applies to the layer bounds, not the tile.
+            let shapeScale: CGFloat
+            switch shape {
+            case .rect:     shapeScale = 1.35
+            case .triangle: shapeScale = 0.85
+            case .circle:   shapeScale = 1.0
+            }
+            let size = baseSize * shapeScale
 
             let particle = makeParticleLayer(shape: shape, color: color, size: size)
             particle.position = pos
@@ -372,19 +393,24 @@ final class ConfettiOverlay {
         let s = CGFloat(size)
         switch shape {
         case .rect:
-            // Wide-ish rectangle typical of paper confetti
-            ctx.fill(CGRect(x: inset, y: s * 0.35, width: s - 2*inset, height: s * 0.30))
+            // Long paper-strip rect: full tile width, 34% height → ~3:1 aspect.
+            ctx.fill(CGRect(x: 0, y: s * 0.33, width: s, height: s * 0.34))
         case .triangle:
+            // Slightly smaller triangle: ~75% of tile, centered.
+            let t = s * 0.75
+            let ox = (s - t) / 2
+            let oy = (s - t) / 2
             ctx.beginPath()
-            ctx.move(to: CGPoint(x: inset, y: inset))
-            ctx.addLine(to: CGPoint(x: s - inset, y: inset))
-            ctx.addLine(to: CGPoint(x: s / 2, y: s - inset))
+            ctx.move(to: CGPoint(x: ox, y: oy))
+            ctx.addLine(to: CGPoint(x: ox + t, y: oy))
+            ctx.addLine(to: CGPoint(x: ox + t / 2, y: oy + t))
             ctx.closePath()
             ctx.fillPath()
         case .circle:
-            ctx.fillEllipse(in: CGRect(x: inset, y: inset,
-                                       width: s - 2 * inset,
-                                       height: s - 2 * inset))
+            // Smaller dot — 60% of tile, centered.
+            let d = s * 0.60
+            ctx.fillEllipse(in: CGRect(x: (s - d) / 2, y: (s - d) / 2,
+                                       width: d, height: d))
         }
         let img = ctx.makeImage()!
         tintCache[key] = img
