@@ -22,7 +22,7 @@ final class ConfettiOverlay {
     private static let flightTime: CGFloat = 1.4       // shorter → keeps initial velo modest despite big g
     private static let apexLift: CGFloat = 0.42        // aim well above center → steeper angle
     private static let aimFraction: CGFloat = 0.55     // aim toward 55% of way to center (lowers vx → slower exit)
-    private static let particlesPerCannonRef = 320     // reference count at 2560x1440 (was 510; cut for perf)
+    private static let particlesPerCannonRef = 160     // reference count at 2560x1440 (halved from 320)
     private static let referencePixels: CGFloat = 2560 * 1440
     private static let subBurstCount = 12              // 12 sub-bursts of ~27 particles each
     private static let subBurstGap: CFTimeInterval = 0.033 // every-other frame @ 60fps — 0.017 collided with vsync commit
