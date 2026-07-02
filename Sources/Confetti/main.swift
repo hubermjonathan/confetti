@@ -28,7 +28,7 @@ final class ConfettiOverlay {
     private static let subBurstGap: CFTimeInterval = 0.033 // every-other frame @ 60fps — 0.017 collided with vsync commit
     private static let launchJitter: CFTimeInterval = 0.05 // per-particle jitter within its sub-burst
     private static let spreadAngle: CGFloat = .pi / 6  // ±30° cone (a bit wider)
-    private static let sizeRange: ClosedRange<CGFloat> = 18...28
+    private static let sizeRange: ClosedRange<CGFloat> = 28...44
     private static let lifetime: CFTimeInterval = 2.2       // flightTime + short tail; heavier g clears screen faster
     private static let dragK: CGFloat = 0.8                 // horizontal drag coefficient
     private static let trajectorySteps: Int = 10            // keyframe samples (cubic interp keeps smooth)
